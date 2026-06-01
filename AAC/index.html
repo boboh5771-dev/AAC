@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-select=none">
+    <title>태블릿 반응형 스마트 AAC 시스템</title>
+    <style>
+        /* 전체 화면 및 모바일 터치 최적화 */
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #F5F5F7;
+            font-family: 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif;
+        }
+
+        /* 3x5 반응형 그리드 레이아웃 */
+        #aac-grid {
+            display: grid;
+            grid-template-rows: repeat(3, 1fr);
+            grid-template-columns: repeat(5, 1fr);
+            gap: 12px;
+            width: 100vw;
+            height: 100vh;
+            padding: 15px;
+        }
+
+        /* 공통 상징 버튼 스타일 */
+        .aac-button {
+            background-color: #FFFFFF;
+            border-radius: 15px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: transform 0.05s active;
+            padding: 10px;
+            box-sizing: border-box;
+            text-align: center;
+        }
+
+        /* 반응형 이미지 및 텍스트 크기 제어 (vmin 단위로 해상도 완벽 대응) */
+        .aac-button img {
+            width: auto;
+            height: 52%;
+            max-width: 90%;
+            object-fit: contain;
+            margin-bottom: 5px;
+        }
+
+        .aac-button span {
+            font-size: calc(2vmin + 6px);
+            font-weight: bold;
+            word-break: keep-all;
+        }
+
+        /* 테마별 테두리 정의 (파이썬 스타일 계승) */
+        .core { border: 3.5px solid #34C759; color: #1C1C1E; }
+        .category { border: 3.5px solid #FFD60A; color: #1C1C1E; }
+        .sub-item { border: 3.5px solid #FFF099; color: #1C1C1E; }
+        .back { background-color: #FF9500; border: 3.5px solid #D57800; color: #FFFFFF; }
+
+        /* 터치/클릭 시 시각적 피드백 효과 */
+        .click-feedback {
+            background-color: #FF3B30 !important;
+            border-color: #D11A2A !important;
+            color: #FFFFFF !important;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="aac-grid"></div>
+
+    <script>
+        // 1. 고정 핵심 상징 8개 (우측 하단 2x4 영역 고정)
+        const coreVocabulary = [
+            { file_name: "화장실.png", text: "화장실" },
+            { file_name: "선생님.png", text: "선생님" },
+            { file_name: "좋아요.png", text: "좋아요" },
+            { file_name: "주세요.png", text: "주세요" },
+            { file_name: "기다려.png", text: "기다려" },
+            { file_name: "엄마.png", text: "엄마" },
+            { file_name: "싫어요.png", text: "싫어요" },
+            { file_name: "도와주세요.png", text: "도와주세요" }
+        ];
+
+        // 2. 어휘 데이터 세트
+        const aacData = {
+            "음식": [
+                { file_name: "밥.png", text: "밥" }, { file_name: "물.png", text: "물" },
+                { file_name: "과자.png", text: "과자" }, { file_name: "치킨.png", text: "치킨" },
+                { file_name: "아이스크림.png", text: "아이스크림" }, { file_name: "피자.png", text: "피자" }
+            ],
+            "장소": [
+                { file_name: "집.png", text: "집" }, { file_name: "마트.png", text: "마트" },
+                { file_name: "병원.png", text: "병원" }, { file_name: "체육관.png", text: "체육관" },
+                { file_name: "도서관.png", text: "도서관" }, { file_name: "카페.png", text: "카페" }
+            ],
+            "사람": [
+                { file_name: "아빠.png", text: "아빠" }, { file_name: "친구.png", text: "친구" },
+                { file_name: "언니.png", text: "언니" }, { file_name: "오빠.png", text: "오빠" },
+                { file_name: "할머니.png", text: "할머니" }, { file_name: "할아버지.png", text: "할아버지" }
+            ],
+            "놀이": [
+                { file_name: "공.png", text: "공" }, { file_name: "종이접기.png", text: "종이접기" },
+                { file_name: "색칠하기.png", text: "색칠하기" }, { file_name: "뽀로로.png", text: "뽀로로" },
+                { file_name: "티니핑.png", text: "티니핑" }, { file_name: "게임.png", text: "게임" }
+            ],
+            "학교": [
+                { file_name: "지우개.png", text: "지우개" }, { file_name: "연필.png", text: "연필" },
+                { file_name: "가방.png", text: "가방" }, { file_name: "칠판.png", text: "칠판" },
+                { file_name: "교과서.png", text: "교과서" }, { file_name: "숙제.png", text: "숙제" }
+            ],
+            "감정": [
+                { file_name: "재밌어요.png", text: "재밌어요" }, { file_name: "슬퍼요.png", text: "슬퍼요" },
+                { file_name: "화나요.png", text: "화나요" }, { file_name: "힘들어요.png", text: "힘들어요" },
+                { file_name: "모르겠어요.png", text: "모르겠어요" }, { file_name: "기뻐요.png", text: "기뻐요" }
+            ],
+            "행동": [
+                { file_name: "안녕하세요.png", text: "안녕하세요" }, { file_name: "가다.png", text: "가다" },
+                { file_name: "오다.png", text: "오다" }, { file_name: "씻다.png", text: "씻다" },
+                { file_name: "오리다.png", text: "오리다" }, { file_name: "자다.png", text: "자다" }
+            ]
+        };
+
+        // 좌표 매핑 규칙
+        const categoryMapping = {
+            "음식": "0-0", "장소": "0-1", "사람": "0-2", "놀이": "0-3", "학교": "0-4",
+            "감정": "1-0", "행동": "2-0"
+        };
+        const fringeCoords = ["0-0", "0-1", "0-2", "0-3", "0-4", "1-0", "2-0"];
+        const coreCoords = ["1-1", "1-2", "1-3", "1-4", "2-1", "2-2", "2-3", "2-4"];
+
+        let currentCategory = null;
+        const gridContainer = document.getElementById('aac-grid');
+
+        // 웹 브라우저 내장 HTML5 Speech Synthesis TTS 함수
+        function speakText(text) {
+            if ('speechSynthesis' in window) {
+                // 이전 음성 재생중이면 취소하여 딜레이 방지
+                window.speechSynthesis.cancel(); 
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = 'ko-KR';
+                utterance.rate = 1.0; // 속도
+                utterance.pitch = 1.0; // 음높이
+                window.speechSynthesis.speak(utterance);
+            }
+        }
+
+        // 시각적 피드백 액션 애니메이션
+        function triggerFeedback(element, callback) {
+            element.classList.add('click-feedback');
+            setTimeout(() => {
+                element.classList.remove('click-feedback');
+                if (callback) callback();
+            }, 350);
+        }
+
+        // 3x5 버튼 프레임 뼈대 기본 생성
+        const buttonMap = {};
+        for (let r = 0; r < 3; r++) {
+            for (let c = 0; c < 5; c++) {
+                const btn = document.createElement('div');
+                btn.className = 'aac-button';
+                btn.style.gridRowStart = r + 1;
+                btn.style.gridColumnStart = c + 1;
+                gridContainer.appendChild(btn);
+                buttonMap[`${r}-${c}`] = btn;
+            }
+        }
+
+        // 메인 및 하위 화면 제어 렌더링 함수
+        function updateBoard() {
+            // 1. 우측 하단 고정 상징 배치 (변하지 않음)
+            coreCoords.forEach((coord, idx) => {
+                const btn = buttonMap[coord];
+                const data = coreVocabulary[idx];
+                
+                btn.className = 'aac-button core';
+                btn.innerHTML = `<img src="${data.file_name}" alt="${data.text}"><span>${data.text}</span>`;
+                
+                btn.onclick = () => {
+                    triggerFeedback(btn, () => speakText(data.text));
+                };
+            });
+
+            // 2. 가변 영역 7칸 조건 제어
+            if (currentCategory === null) {
+                // [메인 대범주 화면]
+                Object.keys(categoryMapping).forEach(catName => {
+                    const coord = categoryMapping[catName];
+                    const btn = buttonMap[coord];
+                    
+                    btn.className = 'aac-button category';
+                    btn.innerHTML = `<img src="${catName}.png" alt="${catName}"><span>${catName}</span>`;
+                    
+                    btn.onclick = () => {
+                        triggerFeedback(btn, () => {
+                            speakText(catName);
+                            currentCategory = catName;
+                            updateBoard();
+                        });
+                    };
+                });
+            } else {
+                // [하위 상징 화면] 토글식 뒤로가기 포함
+                const backCoord = categoryMapping[currentCategory];
+                const subItems = aacData[currentCategory];
+
+                // (1) 선택했던 자리를 주황색 뒤로가기 버튼으로 변환
+                const backBtn = buttonMap[backCoord];
+                backBtn.className = 'aac-button back';
+                backBtn.innerHTML = `<img src="${currentCategory}.png" alt="${currentCategory}"><span>◀ ${currentCategory}</span>`;
+                
+                backBtn.onclick = () => {
+                    triggerFeedback(backBtn, () => {
+                        speakText("이전");
+                        currentCategory = null;
+                        updateBoard();
+                    });
+                };
+
+                // (2) 나머지 6개 칸에 하위 상징 배치
+                let subIdx = 0;
+                fringeCoords.forEach(coord => {
+                    if (coord === backCoord) return; // 뒤로가기 칸 패스
+                    
+                    const btn = buttonMap[coord];
+                    const data = subItems[subIdx];
+                    
+                    btn.className = 'aac-button sub-item';
+                    btn.innerHTML = `<img src="${data.file_name}" alt="${data.text}"><span>${data.text}</span>`;
+                    
+                    btn.onclick = () => {
+                        triggerFeedback(btn, () => speakText(data.text));
+                    };
+                    subIdx++;
+                });
+            }
+        }
+
+        // 초기 구동 실행
+        updateBoard();
+    </script>
+</body>
+</html>
