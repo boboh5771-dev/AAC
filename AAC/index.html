@@ -2,10 +2,9 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-select=none">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-select=none, viewport-fit=cover">
     <title>태블릿 반응형 스마트 AAC 시스템</title>
     <style>
-        /* 전체 화면 및 모바일 터치 최적화 */
         * {
             box-sizing: border-box;
             -webkit-tap-highlight-color: transparent;
@@ -21,20 +20,24 @@
             overflow: hidden;
             background-color: #F5F5F7;
             font-family: 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif;
+            position: fixed; /* 태블릿 스크롤/바운스 현상 전면 차단 */
         }
 
-        /* 3x5 반응형 그리드 레이아웃 */
+        /* [해결] 100vh 대신 상하좌우를 화면 크기에 절대 고정하여 하단 짤림 절대 방지 */
         #aac-grid {
             display: grid;
             grid-template-rows: repeat(3, 1fr);
             grid-template-columns: repeat(5, 1fr);
             gap: 12px;
-            width: 100vw;
-            height: 100vh;
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            left: 0;
+            right: 0;
             padding: 15px;
+            box-sizing: border-box;
         }
 
-        /* 공통 상징 버튼 스타일 */
         .aac-button {
             background-color: #FFFFFF;
             border-radius: 15px;
@@ -43,35 +46,34 @@
             align-items: center;
             justify-content: center;
             cursor: pointer;
-            transition: transform 0.05s active;
             padding: 10px;
             box-sizing: border-box;
             text-align: center;
         }
 
-        /* 반응형 이미지 및 텍스트 크기 제어 (vmin 단위로 해상도 완벽 대응) */
         .aac-button img {
             width: auto;
-            height: 52%;
+            height: 50%;
             max-width: 90%;
             object-fit: contain;
             margin-bottom: 5px;
+            pointer-events: none; /* 터치 이벤트 간섭 방지 */
         }
 
         .aac-button span {
             font-size: calc(2vmin + 6px);
             font-weight: bold;
             word-break: keep-all;
+            pointer-events: none;
         }
 
-        /* 테마별 테두리 정의 (파이썬 스타일 계승) */
         .core { border: 3.5px solid #34C759; color: #1C1C1E; }
         .category { border: 3.5px solid #FFD60A; color: #1C1C1E; }
         .sub-item { border: 3.5px solid #FFF099; color: #1C1C1E; }
         .back { background-color: #FF9500; border: 3.5px solid #D57800; color: #FFFFFF; }
 
-        /* 터치/클릭 시 시각적 피드백 효과 */
-        .click-feedback {
+        /* 터치 시 시각 피드백 효과 */
+        .aac-button:active, .click-feedback {
             background-color: #FF3B30 !important;
             border-color: #D11A2A !important;
             color: #FFFFFF !important;
@@ -83,7 +85,6 @@
     <div id="aac-grid"></div>
 
     <script>
-        // 1. 고정 핵심 상징 8개 (우측 하단 2x4 영역 고정)
         const coreVocabulary = [
             { file_name: "화장실.png", text: "화장실" },
             { file_name: "선생님.png", text: "선생님" },
@@ -95,7 +96,6 @@
             { file_name: "도와주세요.png", text: "도와주세요" }
         ];
 
-        // 2. 어휘 데이터 세트
         const aacData = {
             "음식": [
                 { file_name: "밥.png", text: "밥" }, { file_name: "물.png", text: "물" },
@@ -134,7 +134,6 @@
             ]
         };
 
-        // 좌표 매핑 규칙
         const categoryMapping = {
             "음식": "0-0", "장소": "0-1", "사람": "0-2", "놀이": "0-3", "학교": "0-4",
             "감정": "1-0", "행동": "2-0"
@@ -145,29 +144,24 @@
         let currentCategory = null;
         const gridContainer = document.getElementById('aac-grid');
 
-        // 웹 브라우저 내장 HTML5 Speech Synthesis TTS 함수
+        // [해결] 지연 없이 즉시 발화하도록 세팅
         function speakText(text) {
             if ('speechSynthesis' in window) {
-                // 이전 음성 재생중이면 취소하여 딜레이 방지
                 window.speechSynthesis.cancel(); 
                 const utterance = new SpeechSynthesisUtterance(text);
                 utterance.lang = 'ko-KR';
-                utterance.rate = 1.0; // 속도
-                utterance.pitch = 1.0; // 음높이
+                utterance.rate = 1.0;
                 window.speechSynthesis.speak(utterance);
             }
         }
 
-        // 시각적 피드백 액션 애니메이션
-        function triggerFeedback(element, callback) {
+        // 터치 시 시각적 변화 연출 함수
+        function triggerFeedback(element) {
             element.classList.add('click-feedback');
-            setTimeout(() => {
-                element.classList.remove('click-feedback');
-                if (callback) callback();
-            }, 350);
+            setTimeout(() => element.classList.remove('click-feedback'), 200);
         }
 
-        // 3x5 버튼 프레임 뼈대 기본 생성
+        // 3x5 프레임 생성
         const buttonMap = {};
         for (let r = 0; r < 3; r++) {
             for (let c = 0; c < 5; c++) {
@@ -180,9 +174,8 @@
             }
         }
 
-        // 메인 및 하위 화면 제어 렌더링 함수
         function updateBoard() {
-            // 1. 우측 하단 고정 상징 배치 (변하지 않음)
+            // 1. 고정 핵심 상징 8개 배치
             coreCoords.forEach((coord, idx) => {
                 const btn = buttonMap[coord];
                 const data = coreVocabulary[idx];
@@ -190,12 +183,14 @@
                 btn.className = 'aac-button core';
                 btn.innerHTML = `<img src="${data.file_name}" alt="${data.text}"><span>${data.text}</span>`;
                 
+                // [해결] 터치 즉시 소리 지르고, 그 다음 시각 효과 부여
                 btn.onclick = () => {
-                    triggerFeedback(btn, () => speakText(data.text));
+                    speakText(data.text);
+                    triggerFeedback(btn);
                 };
             });
 
-            // 2. 가변 영역 7칸 조건 제어
+            // 2. 가변 영역 7칸 제어
             if (currentCategory === null) {
                 // [메인 대범주 화면]
                 Object.keys(categoryMapping).forEach(catName => {
@@ -206,35 +201,37 @@
                     btn.innerHTML = `<img src="${catName}.png" alt="${catName}"><span>${catName}</span>`;
                     
                     btn.onclick = () => {
-                        triggerFeedback(btn, () => {
-                            speakText(catName);
+                        speakText(catName); // 터치 즉시 소리내기
+                        triggerFeedback(btn);
+                        setTimeout(() => { // 시각 피드백이 살짝 보인 후 화면 전환
                             currentCategory = catName;
                             updateBoard();
-                        });
+                        }, 100);
                     };
                 });
             } else {
-                // [하위 상징 화면] 토글식 뒤로가기 포함
+                // [하위 상징 화면]
                 const backCoord = categoryMapping[currentCategory];
                 const subItems = aacData[currentCategory];
 
-                // (1) 선택했던 자리를 주황색 뒤로가기 버튼으로 변환
+                // 뒤로가기 버튼 변환
                 const backBtn = buttonMap[backCoord];
                 backBtn.className = 'aac-button back';
                 backBtn.innerHTML = `<img src="${currentCategory}.png" alt="${currentCategory}"><span>◀ ${currentCategory}</span>`;
                 
                 backBtn.onclick = () => {
-                    triggerFeedback(backBtn, () => {
-                        speakText("이전");
+                    speakText("이전");
+                    triggerFeedback(backBtn);
+                    setTimeout(() => {
                         currentCategory = null;
                         updateBoard();
-                    });
+                    }, 100);
                 };
 
-                // (2) 나머지 6개 칸에 하위 상징 배치
+                // 나머지 6개 칸 하위 상징 배치
                 let subIdx = 0;
                 fringeCoords.forEach(coord => {
-                    if (coord === backCoord) return; // 뒤로가기 칸 패스
+                    if (coord === backCoord) return;
                     
                     const btn = buttonMap[coord];
                     const data = subItems[subIdx];
@@ -243,14 +240,15 @@
                     btn.innerHTML = `<img src="${data.file_name}" alt="${data.text}"><span>${data.text}</span>`;
                     
                     btn.onclick = () => {
-                        triggerFeedback(btn, () => speakText(data.text));
+                        speakText(data.text);
+                        triggerFeedback(btn);
                     };
                     subIdx++;
                 });
             }
         }
 
-        // 초기 구동 실행
+        // 초기 실행
         updateBoard();
     </script>
 </body>
