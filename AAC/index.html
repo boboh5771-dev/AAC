@@ -20,49 +20,50 @@
             overflow: hidden;
             background-color: #F5F5F7;
             font-family: 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif;
-            position: fixed; /* 태블릿 스크롤/바운스 현상 전면 차단 */
+            position: fixed;
         }
 
-        /* [해결] 100vh 대신 상하좌우를 화면 크기에 절대 고정하여 하단 짤림 절대 방지 */
+        /* [해결] 태블릿 최하단 시스템 바(Safe Area) 공간을 자동 감지하여 짤림 절대 방지 */
         #aac-grid {
             display: grid;
             grid-template-rows: repeat(3, 1fr);
             grid-template-columns: repeat(5, 1fr);
             gap: 12px;
             position: absolute;
-            top: 0;
-            bottom: 0;
-            left: 0;
-            right: 0;
+            top: env(safe-area-inset-top, 10px);
+            bottom: env(safe-area-inset-bottom, 10px);
+            left: env(safe-area-inset-left, 10px);
+            right: env(safe-area-inset-right, 10px);
             padding: 15px;
             box-sizing: border-box;
         }
 
+        /* [해결] 내부 짤림 방지를 위해 flex 구조 개선 및 여백 최적화 */
         .aac-button {
             background-color: #FFFFFF;
             border-radius: 15px;
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            padding: 10px;
+            justify-content: space-around; /* 위아래 공간을 아기자기하게 자동 배분 */
+            padding: 8px;
             box-sizing: border-box;
             text-align: center;
         }
 
+        /* [해결] forced height 대신 max-height를 사용하여 그림 하단이 잘리는 문제 해결 */
         .aac-button img {
-            width: auto;
-            height: 50%;
-            max-width: 90%;
+            max-width: 85%;
+            max-height: 60%;
             object-fit: contain;
-            margin-bottom: 5px;
-            pointer-events: none; /* 터치 이벤트 간섭 방지 */
+            pointer-events: none;
         }
 
         .aac-button span {
-            font-size: calc(2vmin + 6px);
+            width: 100%;
+            font-size: clamp(14px, 3.8vmin, 26px);
             font-weight: bold;
+            line-height: 1.2;
             word-break: keep-all;
             pointer-events: none;
         }
@@ -72,7 +73,6 @@
         .sub-item { border: 3.5px solid #FFF099; color: #1C1C1E; }
         .back { background-color: #FF9500; border: 3.5px solid #D57800; color: #FFFFFF; }
 
-        /* 터치 시 시각 피드백 효과 */
         .aac-button:active, .click-feedback {
             background-color: #FF3B30 !important;
             border-color: #D11A2A !important;
@@ -143,25 +143,52 @@
 
         let currentCategory = null;
         const gridContainer = document.getElementById('aac-grid');
+        window.utterances = []; 
+        let koVoice = null;
 
-        // [해결] 지연 없이 즉시 발화하도록 세팅
+        // [해결] 브라우저에 등록된 정확한 한국어 오디오 기기 매칭시키기
+        function findKoVoice() {
+            if ('speechSynthesis' in window) {
+                const voices = window.speechSynthesis.getVoices();
+                koVoice = voices.find(v => v.lang.includes('ko') || v.lang.includes('KO'));
+            }
+        }
+        if ('speechSynthesis' in window) {
+            window.speechSynthesis.onvoiceschanged = findKoVoice;
+            findKoVoice();
+        }
+
+        // [해결] 첫 터치(화면 아무데나) 시 태블릿 오디오 잠금 강제 해제(Unlock Hack)
+        window.addEventListener('click', () => {
+            if ('speechSynthesis' in window) {
+                const silence = new SpeechSynthesisUtterance('');
+                window.speechSynthesis.speak(silence);
+            }
+        }, { once: true });
+
         function speakText(text) {
             if ('speechSynthesis' in window) {
                 window.speechSynthesis.cancel(); 
-                const utterance = new SpeechSynthesisUtterance(text);
-                utterance.lang = 'ko-KR';
-                utterance.rate = 1.0;
-                window.speechSynthesis.speak(utterance);
+                
+                setTimeout(() => {
+                    const utterance = new SpeechSynthesisUtterance(text);
+                    if (koVoice) utterance.voice = koVoice; // 최적화된 한국어 엔진 주입
+                    utterance.lang = 'ko-KR';
+                    utterance.rate = 1.0; 
+                    
+                    window.utterances.push(utterance);
+                    if (window.utterances.length > 10) window.utterances.shift();
+
+                    window.speechSynthesis.speak(utterance);
+                }, 60); // 싱크 오류 방지를 위한 최소 마진 확보
             }
         }
 
-        // 터치 시 시각적 변화 연출 함수
         function triggerFeedback(element) {
             element.classList.add('click-feedback');
-            setTimeout(() => element.classList.remove('click-feedback'), 200);
+            setTimeout(() => element.classList.remove('click-feedback'), 180);
         }
 
-        // 3x5 프레임 생성
         const buttonMap = {};
         for (let r = 0; r < 3; r++) {
             for (let c = 0; c < 5; c++) {
@@ -175,7 +202,6 @@
         }
 
         function updateBoard() {
-            // 1. 고정 핵심 상징 8개 배치
             coreCoords.forEach((coord, idx) => {
                 const btn = buttonMap[coord];
                 const data = coreVocabulary[idx];
@@ -183,16 +209,13 @@
                 btn.className = 'aac-button core';
                 btn.innerHTML = `<img src="${data.file_name}" alt="${data.text}"><span>${data.text}</span>`;
                 
-                // [해결] 터치 즉시 소리 지르고, 그 다음 시각 효과 부여
                 btn.onclick = () => {
                     speakText(data.text);
                     triggerFeedback(btn);
                 };
             });
 
-            // 2. 가변 영역 7칸 제어
             if (currentCategory === null) {
-                // [메인 대범주 화면]
                 Object.keys(categoryMapping).forEach(catName => {
                     const coord = categoryMapping[catName];
                     const btn = buttonMap[coord];
@@ -201,20 +224,18 @@
                     btn.innerHTML = `<img src="${catName}.png" alt="${catName}"><span>${catName}</span>`;
                     
                     btn.onclick = () => {
-                        speakText(catName); // 터치 즉시 소리내기
+                        speakText(catName);
                         triggerFeedback(btn);
-                        setTimeout(() => { // 시각 피드백이 살짝 보인 후 화면 전환
+                        setTimeout(() => {
                             currentCategory = catName;
                             updateBoard();
-                        }, 100);
+                        }, 120);
                     };
                 });
             } else {
-                // [하위 상징 화면]
                 const backCoord = categoryMapping[currentCategory];
                 const subItems = aacData[currentCategory];
 
-                // 뒤로가기 버튼 변환
                 const backBtn = buttonMap[backCoord];
                 backBtn.className = 'aac-button back';
                 backBtn.innerHTML = `<img src="${currentCategory}.png" alt="${currentCategory}"><span>◀ ${currentCategory}</span>`;
@@ -225,10 +246,9 @@
                     setTimeout(() => {
                         currentCategory = null;
                         updateBoard();
-                    }, 100);
+                    }, 120);
                 };
 
-                // 나머지 6개 칸 하위 상징 배치
                 let subIdx = 0;
                 fringeCoords.forEach(coord => {
                     if (coord === backCoord) return;
@@ -248,7 +268,6 @@
             }
         }
 
-        // 초기 실행
         updateBoard();
     </script>
 </body>
