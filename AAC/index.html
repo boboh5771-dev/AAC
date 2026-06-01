@@ -12,56 +12,54 @@
             -webkit-user-select: none;
         }
         
+        /* [수정] 100% 대신 100dvh를 사용하여 소프트키/내비바 변화에 실시간 대응 */
         body, html {
             margin: 0;
             padding: 0;
             width: 100%;
-            height: 100%;
+            height: 100dvh; 
             overflow: hidden;
             background-color: #F5F5F7;
             font-family: 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif;
-            position: fixed;
         }
 
-        /* [해결] 태블릿 최하단 시스템 바(Safe Area) 공간을 자동 감지하여 짤림 절대 방지 */
+        /* [수정] 하단 내비게이션 바 공간(35px)을 강제로 확보하여 3행 짤림 원천 차단 */
         #aac-grid {
             display: grid;
             grid-template-rows: repeat(3, 1fr);
             grid-template-columns: repeat(5, 1fr);
             gap: 12px;
-            position: absolute;
-            top: env(safe-area-inset-top, 10px);
-            bottom: env(safe-area-inset-bottom, 10px);
-            left: env(safe-area-inset-left, 10px);
-            right: env(safe-area-inset-right, 10px);
-            padding: 15px;
+            width: 100%;
+            height: 100%;
+            padding: 15px 15px calc(35px + env(safe-area-inset-bottom, 0px)) 15px;
             box-sizing: border-box;
         }
 
-        /* [해결] 내부 짤림 방지를 위해 flex 구조 개선 및 여백 최적화 */
         .aac-button {
             background-color: #FFFFFF;
             border-radius: 15px;
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: space-around; /* 위아래 공간을 아기자기하게 자동 배분 */
+            justify-content: center;
             padding: 8px;
             box-sizing: border-box;
             text-align: center;
+            overflow: hidden;
         }
 
-        /* [해결] forced height 대신 max-height를 사용하여 그림 하단이 잘리는 문제 해결 */
+        /* [수정] 그림 높이 비중을 50%로 살짝 낮춰 글자와의 간섭 및 내부 짤림 방지 */
         .aac-button img {
             max-width: 85%;
-            max-height: 60%;
+            height: 50%;
             object-fit: contain;
+            margin-bottom: 8px;
             pointer-events: none;
         }
 
         .aac-button span {
             width: 100%;
-            font-size: clamp(14px, 3.8vmin, 26px);
+            font-size: clamp(13px, 3.5vmin, 24px);
             font-weight: bold;
             line-height: 1.2;
             word-break: keep-all;
@@ -146,7 +144,6 @@
         window.utterances = []; 
         let koVoice = null;
 
-        // [해결] 브라우저에 등록된 정확한 한국어 오디오 기기 매칭시키기
         function findKoVoice() {
             if ('speechSynthesis' in window) {
                 const voices = window.speechSynthesis.getVoices();
@@ -158,7 +155,6 @@
             findKoVoice();
         }
 
-        // [해결] 첫 터치(화면 아무데나) 시 태블릿 오디오 잠금 강제 해제(Unlock Hack)
         window.addEventListener('click', () => {
             if ('speechSynthesis' in window) {
                 const silence = new SpeechSynthesisUtterance('');
@@ -172,7 +168,7 @@
                 
                 setTimeout(() => {
                     const utterance = new SpeechSynthesisUtterance(text);
-                    if (koVoice) utterance.voice = koVoice; // 최적화된 한국어 엔진 주입
+                    if (koVoice) utterance.voice = koVoice; 
                     utterance.lang = 'ko-KR';
                     utterance.rate = 1.0; 
                     
@@ -180,7 +176,7 @@
                     if (window.utterances.length > 10) window.utterances.shift();
 
                     window.speechSynthesis.speak(utterance);
-                }, 60); // 싱크 오류 방지를 위한 최소 마진 확보
+                }, 60); 
             }
         }
 
