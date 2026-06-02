@@ -12,7 +12,6 @@
             -webkit-user-select: none;
         }
         
-        /* [수정] 100% 대신 100dvh를 사용하여 소프트키/내비바 변화에 실시간 대응 */
         body, html {
             margin: 0;
             padding: 0;
@@ -23,7 +22,6 @@
             font-family: 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif;
         }
 
-        /* [수정] 하단 내비게이션 바 공간(35px)을 강제로 확보하여 3행 짤림 원천 차단 */
         #aac-grid {
             display: grid;
             grid-template-rows: repeat(3, 1fr);
@@ -35,6 +33,7 @@
             box-sizing: border-box;
         }
 
+        /* [수정] 상징 크기를 확보하기 위해 버튼 내부 기본 패딩을 줄임 */
         .aac-button {
             background-color: #FFFFFF;
             border-radius: 15px;
@@ -42,26 +41,27 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            padding: 8px;
+            padding: 4px; /* 기존 8px -> 4px */
             box-sizing: border-box;
             text-align: center;
             overflow: hidden;
         }
 
-        /* [수정] 그림 높이 비중을 50%로 살짝 낮춰 글자와의 간섭 및 내부 짤림 방지 */
+        /* [수정] 이미지 크기 약 1.5배 확대 및 마진 최적화 */
         .aac-button img {
-            max-width: 85%;
-            height: 50%;
+            max-width: 95%; /* 기존 85% -> 95% */
+            height: 65%;    /* 기존 50% -> 65% (약 1.3배 증가 + 패딩 축소로 실체감 1.5배) */
             object-fit: contain;
-            margin-bottom: 8px;
+            margin-bottom: 4px; /* 기존 8px -> 4px */
             pointer-events: none;
         }
 
+        /* [수정] 텍스트 크기 최소/최대치 약 1.5배 확대 및 줄간격 조정 */
         .aac-button span {
             width: 100%;
-            font-size: clamp(13px, 3.5vmin, 24px);
+            font-size: clamp(18px, 4.5vmin, 36px); /* 기존 clamp(13px, 3.5vmin, 24px)에서 약 1.5배 확대 */
             font-weight: bold;
-            line-height: 1.2;
+            line-height: 1.1; /* 기존 1.2 -> 1.1 */
             word-break: keep-all;
             pointer-events: none;
         }
